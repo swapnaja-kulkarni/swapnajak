@@ -15,6 +15,9 @@ On the first look, we see that the different color coded bar for different count
 
 Note about Data: The data is taken from the GaDPH website . The initial figures do not seem to match the GaDPH data source exactly, but seems to be directional. The data represents cases from April 26th, 2020 to May 11th, 2020.
 
+NOTE: Please find the Youtube Video for Mid term project code demonstration. Thsi includes the two static redesigns and the ShinyApp Demo.
+{{< video https://youtu.be/Eq7FHE7_Ls8 >}}
+
 ```{r}
 #| label: load packages
 #| message: false
@@ -153,7 +156,7 @@ library(shiny)
 
 ui <- fluidPage(
   
-  titlePanel("COVID-19 Cases in Georgia Apr-May 2020"),
+  titlePanel("COVID cases in GA"),
   sidebarLayout(
     sidebarPanel(
       # inputs
@@ -200,7 +203,7 @@ server <- function(input, output) {
 shinyApp(ui=ui, server=server)
 ```
 
-We concluded that it is better to design interactive graphs rather than designing static graphs mainly because - 1. Easily to understand and slice dataset as required 2. Maps are better to visually look at.
+We concluded that it is better to design interactive graphs rather than designing static graphs mainly because: 1. Easily to understand and slice dataset as required 2. Maps are better to visually look at.
 
 Citations:
 
