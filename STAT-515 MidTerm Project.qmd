@@ -1,0 +1,209 @@
+---
+title: "STAT-515 MidTerm Project"
+editor: visual
+---
+
+Project Title: COVID-19 Cases in Georgia, USA
+
+For this mid-term project, we considered the data published by the Georgia Department of Public Health in 2020. On Monday of 19th May 2020, The Georgia Department of Public Health had to apologize for publishing a bad bar graph on the state health department website.The plot incorrectly shown decreasing new cases in the counties with the most infections had dropped every single day for the past two weeks. However,in reality, there was no downward trend observed after research. The bar with title “Top 5 Counties with the Greatest Number of Confirmed COVID-19 Cases” was initially posted on May 10.
+
+![](images/original_badgraph.png){fig-align="center"}
+
+Credit: Georgia Department of Health/GaDPH (Article published in FirstCoastNews)
+
+On the first look, we see that the different color coded bar for different county, show a negative slope. Closer look reveals that the X-axis is not in chronological order and dates are misplaced. Its hard to interpret and compare results date wise. Also, counties are not positioned appropriately for each day. Below are the two ways with which we can produce better graphical representation. We try to represent the above mentioned dataset using a line graph. The Line graph would help us understand how the covid cases change over the time horizon by each county. We also try to calculate and represent the 15-day moving average number from the number of historical cases recorded.
+
+Note about Data: The data is taken from the GaDPH website . The initial figures do not seem to match the GaDPH data source exactly, but seems to be directional. The data represents cases from April 26th, 2020 to May 11th, 2020.
+
+```{r}
+#| label: load packages
+#| message: false
+
+#Redesign Example 1: Line Graph
+
+#importing libraries
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(plotly)
+library(sqldf)
+library(tidyverse)
+library(rjson)
+
+#pull raw data for covid cases (published by GPHD)
+df_covidcases_rawdata <- read.csv("C:/Documents/GMU_Swapnaja/spring2024_STAT514/project/5.17.23_archive_epicurve_rpt_date.csv", header = TRUE)
+
+#update the datatype to Date from character by creating a new column
+df_covidcases_rawdata$Date <- as.Date(df_covidcases_rawdata$report_date)
+
+#filter only April and May data
+df_covidcases_aprmay <- df_covidcases_rawdata[df_covidcases_rawdata$Date > "2020-04-01" &
+                                                df_covidcases_rawdata$Date < "2020-05-15", ]
+
+# copy data frame and rename columns to differentiate them from original data frame
+df_covidcases_aprmay_copy = df_covidcases_aprmay
+df_covidcases_aprmay_copy <- df_covidcases_aprmay_copy %>% 
+  rename(
+    cases_copy = cases,
+    Date_copy = Date
+  )
+
+#merge data frames
+df_covidcases_15daymovavg_temp = merge(x = df_covidcases_aprmay[, c("county",'report_date',"Date","cases")], y = df_covidcases_aprmay_copy[, c("county", "cases_copy","Date_copy")], by = "county", all.x=TRUE)
+
+#filter last 15 days of cases
+df_covidcases_15daymovavg_temp2 <- df_covidcases_15daymovavg_temp[df_covidcases_15daymovavg_temp$Date_copy > df_covidcases_15daymovavg_temp$Date-15 &
+df_covidcases_15daymovavg_temp$Date_copy <= df_covidcases_15daymovavg_temp$Date, ]
+
+# calcute 15-day moving average as: total_cases(in last 15 days)/15
+df_covidcases_15daymovavg <- as.data.frame(df_covidcases_15daymovavg_temp2%>%group_by(county,report_date,Date,cases)%>%
+  summarise(moving_avg = round(sum(cases_copy)/15,2)))
+
+# Filter data to specific plot dates
+df_covidcases_movavg_update <- filter(df_covidcases_15daymovavg, (Date >= as.Date('2020-04-26')  & Date <= as.Date('2020-05-11')))
+
+df_filter_covidcases <- filter(df_covidcases_15daymovavg, (county=="Cobb" | county =="DeKalb" | county =="Fulton" | county == "Gwinnett" | county == "Hall") & (Date >= as.Date('2020-04-26')  & Date <= as.Date('2020-05-11')))
+
+#design line graph
+graph.covid= ggplot(df_filter_covidcases, aes(x=Date, y=moving_avg)) +
+  geom_line(aes(color=county)) +
+  scale_x_date(date_labels="%d%b\n%Y", breaks = unique(df_filter_covidcases$Date)) +
+  labs(x = "Date",
+       y = "Average Cases",
+       title = "Top 5 Counties with Greatest Number of Confirmed Covid-19 Cases (Apr-May 2020)")+
+  scale_fill_manual(values = c("blue","yellow","purple","orange","green"))
+
+ggplotly(graph.covid)
+
+```
+
+The redesign helps us better understand the collective cases because it was noted during COVID-19 that it takes 15 days for the virus to affect an individual, may it be adult or children.
+
+Also, the graph now better displays the comparison between the 5 counties listed previously. the previous graph seems to be designed to show the total number of decreasing number of cases by day for the time horizon.
+
+The new dataset displays the actual trend by day, by county. For Gwinett county the cases seem to be increasing and eventually slowing down, whereas for the other 4 counties, the cases seem to be decreasing in the horizon.
+
+Another way to represent the cases is using Choropleth Map, where we can see the total cases by county during the horizon.
+
+```{r}
+#Redesign Example 2: Choropleth Map
+
+#calcute the total cases by county
+df_covidcases_allcounties <- as.data.frame(df_covidcases_15daymovavg%>%group_by(county)%>%summarise(cases = sum(cases)))
+
+# pull geojson
+url <- 'https://raw.githubusercontent.com/plotly/datasets/master/geojson-counties-fips.json'
+counties <- rjson::fromJSON(file=url)
+
+# pull FIPS for counties
+df_countyfips <- read.csv("C:/Documents/GMU_Swapnaja/spring2024_STAT514/project/uszips.csv", header = TRUE)
+
+#filter counties in Georgia, USA
+df_countyfips2 <- df_countyfips[df_countyfips$state_id %in% c("GA"),]
+
+#group by distinct counties
+df_countyfips_grouped = unique(subset(df_countyfips2, select = c('county_name','county_fips')))
+
+#calculate the total no of cases
+df_casesbycounty <- sqldf("SELECT x.county, y.county_fips, sum(x.cases) as cases
+                             FROM df_covidcases_allcounties as x
+                             LEFT JOIN df_countyfips_grouped as y
+                             ON x.county =y.county_name
+                             GROUP BY x.county, y.county_fips")
+
+#plot choropleth graph
+g <- list(
+  fitbounds = "locations",
+  visible = FALSE
+)
+
+map_of_ga <- plot_ly()
+
+map_of_ga <- map_of_ga %>% add_trace(
+  type="choropleth",
+  geojson=counties,
+  hoverinfo = "text",
+  text = paste("County: ",df_casesbycounty$county,"<br>","Total Cases: ",df_casesbycounty$cases),
+  z=df_casesbycounty$cases,
+  locations=df_casesbycounty$county_fips,
+  colorscale="Viridis",
+  zmin=0,
+  zmax=1000,
+  marker=list(line=list(width=0))
+)
+map_of_ga <- map_of_ga %>% colorbar(title = "Total Cases in County")
+map_of_ga <- map_of_ga %>% layout(title = "Covid-19 Cases in Georgia by County (April to May 2020)")
+
+map_of_ga <- map_of_ga %>% layout(
+  geo = g,
+  yaxis = list(hoverformat = '.2f')
+)
+
+map_of_ga
+```
+
+The map shows the most impacted counties by creating a Heat map projection for number of cases by county. This one colorfully shows which geographical areas were mostly affected by the disease.
+
+We created a dynamic redesign of the above line Graph which is also discussed in the video representation. We used the ShinyApp for designing this graph. This can help us compare trends in different time windows and different counties, within the considered time horizon. The below code gives the output for an interactive ShinyApp. (Since this is a static version, the App may not be displayed here!)
+
+```{r}
+library(shiny) 
+#Redesign Example 3: Dynamic Line Graph
+
+ui <- fluidPage(
+  
+  titlePanel("Diseases in the US 1928-2011"),
+  sidebarLayout(
+    sidebarPanel(
+      # inputs
+      selectizeInput("stateInput", "County",
+                     choices = unique(df_covidcases_movavg_update$county),  
+                     selected="Cobb", multiple =TRUE),
+      dateRangeInput("dates", label = h3("Date range"), start = as.Date('2020-04-26'), end = as.Date('2020-05-14'), min = as.Date('2020-04-26'), max = as.Date('2020-05-14')),
+      hr(),
+      fluidRow(column(4, verbatimTextOutput("value")))
+      ),
+    
+    mainPanel(
+      # outputs
+      plotOutput("diseaseplot")
+      
+    ) 
+  ) 
+)   
+
+server <- function(input, output) {
+  
+  d <- reactive({
+    filtered <-
+      df_covidcases_movavg_update %>%
+      dplyr::filter(county == input$stateInput,
+             Date >= input$dates[1],
+             Date <= input$dates[2]
+             )
+  })
+
+  output$diseaseplot <- renderPlot({
+    
+      ggplot(d(), aes(x=Date, y=moving_avg)) +
+      geom_line(aes(color=county)) +
+      scale_x_date(date_labels="%d%b\n%Y", breaks = unique(df_covidcases_movavg_update$Date)) +
+      labs(x = "Date",
+           y = "Average Cases",
+           title = "Top 5 Counties with Greatest Number of Confirmed Covid-19 Cases (Apr-May 2020)")+
+      theme(legend.position = "none")
+    
+  })
+}
+
+shinyApp(ui=ui, server=server)
+```
+
+We concluded that it is better to design interactive graphs rather than designing static graphs mainly because - 1. Easily to understand and slice dataset as required 2. Maps are better to visually look at.
+
+Citations:
+
+\[1\] First Coast News Staff,7:59 PM EDT May 19, 2020, Available on: https://www.firstcoastnews.com/article/news/local/georgia/georgia-data-numbers-misrepresented/77-08c31538-3f26-4348-9f30-d81b11dd4d24.
+
+\[2\] Posit Software, PBC, Available on: https://www.shinyapps.io/
