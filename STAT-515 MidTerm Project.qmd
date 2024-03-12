@@ -15,8 +15,7 @@ On the first look, we see that the different color coded bar for different count
 
 Note about Data: The data is taken from the GaDPH website . The initial figures do not seem to match the GaDPH data source exactly, but seems to be directional. The data represents cases from April 26th, 2020 to May 11th, 2020.
 
-NOTE: Please find the Youtube Video for Mid term project code demonstration. Thsi includes the two static redesigns and the ShinyApp Demo.
-{{< video https://youtu.be/Eq7FHE7_Ls8 >}}
+NOTE: Please find the Youtube Video for Mid term project code demonstration. Thsi includes the two static redesigns and the ShinyApp Demo. {{< video https://youtu.be/Eq7FHE7_Ls8 >}}
 
 ```{r}
 #| label: load packages
@@ -148,6 +147,8 @@ map_of_ga
 
 The map shows the most impacted counties by creating a Heat map projection for number of cases by county. This one colorfully shows which geographical areas were mostly affected by the disease.
 
+ShinyApp Design!
+
 We created a dynamic redesign of the above line Graph which is also discussed in the video representation. We used the ShinyApp for designing this graph. This can help us compare trends in different time windows and different counties, within the considered time horizon. The below code gives the output for an interactive ShinyApp. (Since this is a static version, the App may not be displayed here!)
 
 ```{r}
@@ -202,6 +203,10 @@ server <- function(input, output) {
 
 shinyApp(ui=ui, server=server)
 ```
+
+![](images/shinyapp-01.png)
+
+A snippet of the ShinyApp (variable fields are highlighted in red).
 
 We concluded that it is better to design interactive graphs rather than designing static graphs mainly because: 1. Easily to understand and slice dataset as required 2. Maps are better to visually look at.
 
